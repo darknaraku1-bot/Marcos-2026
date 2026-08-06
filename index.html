@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f0f0e">
+    <meta name="description" content="PWA para capturar retratos históricos interactivos en el Cementerio San Juan Bautista">
+    <title>Fotografía Histórica - Cementerio San Juan Bautista</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <!-- Ionicons for modern antique-style UI icons -->
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+</head>
+<body>
+
+
+
+    <!-- Fullscreen Toggle -->
+    <div class="fullscreen-btn" id="btnFullscreen" title="Pantalla Completa">
+        <ion-icon name="expand-outline" id="fullscreenIcon" style="font-size: 20px;"></ion-icon>
+    </div>
+
+    <div class="camera-wrapper">
+        <div class="camera-container" id="cameraContainer">
+            <video id="videoFeed" autoplay playsinline></video>
+            
+            <!-- high resolution canvas 1080x1440 (3:4) -->
+            <canvas id="photoCanvas" width="1080" height="1440"></canvas>
+            
+            <!-- Loading Indicator -->
+            <div class="loading-overlay" id="loadingOverlay">
+                <div class="spinner"></div>
+                <div class="loading-text">Conectando a cámara...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="controls-container">
+        <div class="status-bar">
+            <div class="lantern-indicator">
+                <div class="lantern-dot" id="lanternDot"></div>
+                <span id="lanternText">Linterna: Buscando Guía...</span>
+            </div>
+            <div class="station-name-indicator" id="stationIndicator">
+                Estación: Cargando...
+            </div>
+        </div>
+
+        <div class="buttons-row">
+            <button class="btn btn-secondary" id="btnFilter" title="Cambiar filtro de época">
+                <ion-icon name="color-palette-outline" style="font-size: 20px;"></ion-icon>
+            </button>
+            
+            <button class="btn-capture" id="btnCapture" title="Tomar Fotografía">
+                <div class="btn-capture-inner"></div>
+            </button>
+            
+            <button class="btn btn-secondary" id="btnSwitchCam" title="Girar Cámara">
+                <ion-icon name="camera-reverse-outline" style="font-size: 20px;"></ion-icon>
+            </button>
+        </div>
+    </div>
+
+    <!-- Modal de Resultado -->
+    <div class="modal" id="resultModal">
+        <div class="modal-header">
+            <h2>Tu fotografía está lista</h2>
+        </div>
+        
+        <div class="modal-img-container">
+            <img id="finalImage" src="" alt="Fotografía Capturada con Filtro Histórico">
+        </div>
+        
+        <div class="modal-buttons">
+            <button class="btn btn-primary" id="btnShare">
+                <ion-icon name="share-social-outline" style="font-size: 18px;"></ion-icon>
+                Compartir Recuerdo
+            </button>
+            <div class="modal-buttons-row">
+                <button class="btn" id="btnDownload">
+                    <ion-icon name="download-outline" style="font-size: 18px;"></ion-icon>
+                    Guardar Foto
+                </button>
+                <button class="btn btn-close" id="btnCloseModal">
+                    <ion-icon name="refresh-outline" style="font-size: 18px;"></ion-icon>
+                    Tomar Otra
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sonido sintetizado programáticamente por Web Audio API -->
+
+    <script>
+        // Mapeo enriquecido de estaciones de la ruta histórica
+        const stationsData = {
+            'default': {
+                name: 'Cementerio Histórico',
+                subtitle: 'San Juan Bautista',
+                overlay: 'assets/marcos/marco_generico.png',
+                character: 'assets/personajes/personaje_generico.png',
+                signature: 'Recuerdo del Pasado',
+                narrative: 'Bienvenidos al Cementerio San Juan Bautista de Corrientes, fundado a mediados del siglo diecinueve. Un espacio sagrado donde la arquitectura victoriana y las leyendas se funden bajo el susurro del viento.',
+                hashtag: '#PaseoNocturno #CementerioSanJuanBautista',
+                color: 'gold'
+            },
+            'cabral': {
+                name: 'Mausoleo del Sargento Cabral',
+                subtitle: 'Héroe de San Lorenzo',
+                overlay: 'assets/marcos/marco_cabral.png',
+                character: 'assets/personajes/cabral.png',
+                signature: 'Juan Bautista Cabral',
+                narrative: 'Juan Bautista Cabral, valiente soldado correntino de origen afro-indígena. En la batalla de San Lorenzo en mil ochocientos trece, interpuso su cuerpo para salvar al General José de San Martín, pronunciando las inmortales palabras: ¡Muero contento, hemos batido al enemigo!',
+                hashtag: '#SargentoCabral #SanJuanBautista #HéroesCorrentinos',
+                color: 'red'
+            },
+            'pampin': {
+                name: 'Panteón Familia Pampín',
+                subtitle: 'Edad de Oro Correntina',
+                overlay: 'assets/marcos/marco_pampin.png',
+                character: 'assets/personajes/pampin.png',
+                signature: 'Gobernador José Pampín',
+                narrative: 'El monumental panteón de la Familia Pampín es uno de los máximos exponentes del neoclasicismo y romanticismo funerario del siglo diecinueve. José Pampín fue gobernador constitucional de la provincia de Corrientes, liderando en tiempos de la consolidación institucional nacional.',
+                hashtag: '#FamiliaPampín #ArquitecturaFuneraria #HistoriaCorrentina',
+                color: 'blue'
+            },
+            'madariaga': {
+                name: 'Mausoleo de Joaquín Madariaga',
+                subtitle: 'Gobernador y General',
+                overlay: 'assets/marcos/marco_madariaga.png',
+                character: 'assets/personajes/madariaga.png',
+                signature: 'J. Madariaga',
+                narrative: 'El General Joaquín Madariaga lideró las fuerzas de resistencia contra la tiranía en el siglo diecinueve. Junto a su hermano Juan, cruzó el río Uruguay en una gesta heroica para restaurar las libertades de la provincia de Corrientes y unificar el país.',
+                hashtag: '#GeneralMadariaga #CementerioSanJuanBautista #HistoriaNacional',
+                color: 'green'
+            },
+            'poeta': {
+                name: 'Tumba del Poeta del Campo',
+                subtitle: 'Elegía y Silencio',
+                overlay: 'assets/marcos/marco_poeta.png',
+                character: 'assets/personajes/poeta.png',
+                signature: 'El Poeta Silencioso',
+                narrative: 'En los rincones sombríos reposan los poetas de esta tierra. Sus versos cantan al amor, la muerte y el misterio del río Paraná. Detente un momento y siente la lírica grabada en los mármoles que el tiempo desgasta pacientemente.',
+                hashtag: '#PoesíaFuneraria #LeyendasUrbanas #SanJuanBautista',
+                color: 'violet'
+            }
+        };
+
+        // Elementos del DOM
+        const video = document.getElementById('videoFeed');
+        const canvas = document.getElementById('photoCanvas');
+        const ctx = canvas.getContext('2d');
+        const cameraContainer = document.getElementById('cameraContainer');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const stationIndicator = document.getElementById('stationIndicator');
+        const lanternDot = document.getElementById('lanternDot');
+        const lanternText = document.getElementById('lanternText');
+        
+        // Controles y botones
+        const btnCapture = document.getElementById('btnCapture');
+        const btnFilter = document.getElementById('btnFilter');
+        const btnSwitchCam = document.getElementById('btnSwitchCam');
+        const btnAudio = document.getElementById('btnAudio');
+        const audioIcon = document.getElementById('audioIcon');
+
+        // Modal
+        const resultModal = document.getElementById('resultModal');
+        const finalImage = document.getElementById('finalImage');
+        const btnShare = document.getElementById('btnShare');
+        const btnDownload = document.getElementById('btnDownload');
+        const btnCloseModal = document.getElementById('btnCloseModal');
+
+        // Estado de la Aplicación
+        let currentStream = null;
+        let useFacingMode = 'user'; // Por defecto frontal para 'selfies' históricas
+        let activeFilter = 'none'; // 'none', 'sepia', 'grayscale', 'grain'
+        let speechSynth = window.speechSynthesis;
+        let speechUtterance = null;
+        let isSpeaking = false;
+        let wsConnection = null;
+
+        // Cargar parámetros de URL (?estacion=...)
+        const urlParams = new URLSearchParams(window.location.search);
+        const stationKey = urlParams.get('estacion') || 'default';
+        const currentStation = stationsData[stationKey] || stationsData['default'];
+
+        // Actualizar UI inicial según estación
+        stationIndicator.innerText = `Estación: ${currentStation.name}`;
+
+        // Carga diferida de imágenes con fallbacks vectoriales
+        const overlayImg = new Image();
+        const characterImg = new Image();
+        let overlayLoaded = false;
+        let characterLoaded = false;
+
+        overlayImg.onload = () => { overlayLoaded = true; };
+        overlayImg.onerror = () => { 
+            console.warn("No se pudo cargar el marco PNG específico, intentando cargar el genérico de la estación como fallback...");
+            if (!overlayImg.src.endsWith(currentStation.overlay)) {
+                overlayImg.src = currentStation.overlay;
+            } else {
+                overlayLoaded = false;
+            }
+        };
+        
+        function loadResponsiveOverlay() {
+            const isVertical = window.innerHeight > window.innerWidth;
+            const suffix = isVertical ? '_vertical' : '_horizontal';
+            const responsiveSrc = currentStation.overlay.replace('.png', `${suffix}.png`);
+            
+            if (!overlayImg.src.endsWith(responsiveSrc) && !overlayImg.src.endsWith(currentStation.overlay)) {
+                overlayImg.src = responsiveSrc;
+            }
+        }
+        loadResponsiveOverlay();
+
+        characterImg.onload = () => { characterLoaded = true; };
+        characterImg.onerror = () => { 
+            console.warn("No se pudo cargar la imagen del personaje PNG, se usará el fallback vectorial."); 
+            characterLoaded = false; 
+        };
+        characterImg.src = currentStation.character;
+
+        // 1. Conexión WebSocket para sincronización de Linterna del Guía
+        function initWebSocket() {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${wsProtocol}//${window.location.host}`;
+            
+            lanternText.innerText = "Linterna: Conectando...";
+            
+            try {
+                wsConnection = new WebSocket(wsUrl);
+                
+                wsConnection.onopen = () => {
+                    lanternDot.classList.add('connected');
+                    lanternText.innerText = "Linterna: Conectada";
+                    
+                    // Notificar al guía qué estación está activa para que su linterna cambie
+                    sendWsMessage({
+                        type: 'STATION_ACTIVE',
+                        station: stationKey,
+                        color: currentStation.color
+                    });
+                };
+                
+                wsConnection.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'LANTERN_COLOR_CHANGED') {
+                            lanternDot.style.backgroundColor = data.color;
+                            lanternDot.style.boxShadow = `0 0 10px ${data.color}`;
+                            lanternText.innerText = `Linterna: ${data.name || 'Sincronizada'}`;
+                        }
+                    } catch (e) {
+                        console.error("Error al procesar mensaje del servidor de linternas", e);
+                    }
+                };
+                
+                wsConnection.onclose = () => {
+                    handleWsDisconnect();
+                };
+                
+                wsConnection.onerror = () => {
+                    handleWsDisconnect();
+                };
+            } catch (err) {
+                handleWsDisconnect();
+            }
+        }
+
+        function handleWsDisconnect() {
+            lanternDot.classList.remove('connected');
+            lanternDot.style.backgroundColor = '#8c8c8c';
+            lanternDot.style.boxShadow = 'none';
+            lanternText.innerText = "Linterna: Modo Local";
+            wsConnection = null;
+        }
+
+        function sendWsMessage(msg) {
+            if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+                wsConnection.send(JSON.stringify(msg));
+            }
+        }
+
+        // 2. Iniciar WebRTC para capturar Cámara
+        async function startCamera() {
+            loadingOverlay.style.opacity = '1';
+            loadingOverlay.style.display = 'flex';
+
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+            }
+
+            // Lista de configuraciones de cámara para probar (de la más restrictiva a la más general)
+            const constraintOptions = [
+                // Opción 1: Alta definición con orientación ideal
+                {
+                    video: {
+                        facingMode: useFacingMode,
+                        width: { ideal: 1440 },
+                        height: { ideal: 1080 }
+                    },
+                    audio: false
+                },
+                // Opción 2: Orientación ideal con resolución estándar
+                {
+                    video: {
+                        facingMode: useFacingMode,
+                        width: { ideal: 640 },
+                        height: { ideal: 480 }
+                    },
+                    audio: false
+                },
+                // Opción 3: Orientación ideal únicamente (sin resolución forzada)
+                {
+                    video: {
+                        facingMode: useFacingMode
+                    },
+                    audio: false
+                },
+                // Opción 4: Video básico (cualquier cámara disponible)
+                {
+                    video: true,
+                    audio: false
+                }
+            ];
+
+            let streamSuccess = false;
+            let lastError = null;
+
+            for (let i = 0; i < constraintOptions.length; i++) {
+                try {
+                    console.log(`Intentando conectar cámara con opción de restricciones ${i + 1}...`);
+                    currentStream = await navigator.mediaDevices.getUserMedia(constraintOptions[i]);
+                    streamSuccess = true;
+                    console.log(`Cámara conectada exitosamente con opción ${i + 1}.`);
+                    break; // Salir del bucle si tenemos éxito
+                } catch (err) {
+                    lastError = err;
+                    console.warn(`Opción de restricciones ${i + 1} falló:`, err.name || err.message);
+                }
+            }
+
+            if (streamSuccess && currentStream) {
+                video.srcObject = currentStream;
+                
+                // Esperamos que cargue el video para ocultar el spinner de carga
+                video.onloadedmetadata = () => {
+                    video.play();
+                    loadingOverlay.style.opacity = '0';
+                    setTimeout(() => { loadingOverlay.style.display = 'none'; }, 500);
+                };
+                
+                requestAnimationFrame(renderCanvas);
+            } else {
+                loadingOverlay.style.display = 'none';
+                console.error("Fallo total al iniciar cámara después de todos los fallbacks:", lastError);
+                
+                let errorMsg = "No se pudo acceder a la cámara.\n\n";
+                if (lastError && (lastError.name === 'NotAllowedError' || lastError.name === 'PermissionDeniedError')) {
+                    errorMsg += "Permiso denegado: Por favor, habilita el permiso de cámara en la barra de direcciones del navegador o en los ajustes del sistema.";
+                } else if (lastError && (lastError.name === 'NotFoundError' || lastError.name === 'DevicesNotFoundError')) {
+                    errorMsg += "Cámara no encontrada: Asegúrate de tener una cámara conectada y encendida en tu dispositivo.";
+                } else if (lastError && (lastError.name === 'NotReadableError' || lastError.name === 'TrackStartError')) {
+                    errorMsg += "Cámara bloqueada: Otra aplicación (como Zoom, Teams, WhatsApp) podría estar usando la cámara en este momento.";
+                } else {
+                    errorMsg += "Detalle técnico: " + (lastError ? lastError.message : "Error desconocido");
+                }
+                
+                alert(errorMsg);
+            }
+        }
+
+        // 3. Bucle de Renderizado en Canvas
+        function renderCanvas() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                // Guardar estado del canvas
+                ctx.save();
+
+                // Para selfies (cámara frontal), invertimos horizontalmente el video para efecto espejo natural
+                if (useFacingMode === 'user') {
+                    ctx.translate(canvas.width, 0);
+                    ctx.scale(-1, 1);
+                }
+
+                // Aplicar Filtro Vintage al fondo (cámara) únicamente
+                if (activeFilter === 'sepia') {
+                    ctx.filter = 'sepia(0.85) contrast(1.1) brightness(0.95)';
+                } else if (activeFilter === 'grayscale') {
+                    ctx.filter = 'grayscale(1) contrast(1.2) brightness(0.9)';
+                } else if (activeFilter === 'grain') {
+                    ctx.filter = 'sepia(0.4) grayscale(0.5) contrast(1.15) brightness(0.9)';
+                } else {
+                    ctx.filter = 'none';
+                }
+
+                // Dibujar el feed de cámara en el Canvas centralizado y recortado a 3:4
+                const videoRatio = video.videoWidth / video.videoHeight;
+                const canvasRatio = canvas.width / canvas.height;
+                let sx, sy, sWidth, sHeight;
+
+                if (videoRatio > canvasRatio) {
+                    sHeight = video.videoHeight;
+                    sWidth = video.videoHeight * canvasRatio;
+                    sx = (video.videoWidth - sWidth) / 2;
+                    sy = 0;
+                } else {
+                    sWidth = video.videoWidth;
+                    sHeight = video.videoWidth / canvasRatio;
+                    sx = 0;
+                    sy = (video.videoHeight - sHeight) / 2;
+                }
+
+                ctx.drawImage(video, sx, sy, sWidth, sHeight, 0, 0, canvas.width, canvas.height);
+                
+                // Añadir efecto de grano digital si el filtro de grano está activo
+                if (activeFilter === 'grain') {
+                    addNoiseEffect();
+                }
+
+                // Restaurar estado original (quita espejo y filtros para el marco y personaje)
+                ctx.restore();
+
+                // Aplicar viñeta vintage al Canvas completo
+                drawVignette();
+
+                // Dibujar el Personaje Histórico en PNG (Esquina inferior derecha)
+                if (characterLoaded) {
+                    const charWidth = canvas.width * 0.45;
+                    const charHeight = (characterImg.height / characterImg.width) * charWidth;
+                    // Posicionarlo ligeramente desplazado de las orillas del marco
+                    ctx.drawImage(characterImg, canvas.width - charWidth - 30, canvas.height - charHeight - 30, charWidth, charHeight);
+                }
+
+                // Dibujar el Marco Ornamental PNG (Cubre exactamente los 4 límites de la pantalla)
+                if (overlayLoaded) {
+                    // Factor de zoom para compensar si el archivo PNG tiene márgenes transparentes
+                    // Si recortas la imagen perfecta en Photoshop, puedes poner esto en 1.0
+                    const zoomCompensacion = 1.15; 
+                    const w = canvas.width * zoomCompensacion;
+                    const h = canvas.height * zoomCompensacion;
+                    const x = (canvas.width - w) / 2;
+                    const y = (canvas.height - h) / 2;
+                    
+                    ctx.drawImage(overlayImg, x, y, w, h);
+                } else {
+                    // Fallback visual del Marco: Dibujo vectorial de filigrana estilo bronce victoriano
+                    drawFrameFallback();
+                }
+
+                // Los textos, firmas y marcas de agua ahora vienen embebidos directamente en los archivos de marcos (SVG/PNG) para facilitar la personalización
+            }
+
+            // Continuar renderizando si el modal no está visible
+            if (resultModal.style.display !== 'flex') {
+                requestAnimationFrame(renderCanvas);
+            }
+        }
+
+        // 4. Dibujo de Efectos Especiales en Canvas
+        function drawVignette() {
+            const gradient = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, canvas.width * 0.4,
+                canvas.width / 2, canvas.height / 2, canvas.width * 0.75
+            );
+            gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+            gradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.15)');
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0.65)');
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function addNoiseEffect() {
+            const bufferSize = canvas.width * canvas.height * 4;
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imgData.data;
+            
+            for (let i = 0; i < bufferSize; i += 4) {
+                const noise = (Math.random() - 0.5) * 25; // Nivel de grano
+                data[i] = Math.min(255, Math.max(0, data[i] + noise));     // R
+                data[i+1] = Math.min(255, Math.max(0, data[i+1] + noise)); // G
+                data[i+2] = Math.min(255, Math.max(0, data[i+2] + noise)); // B
+            }
+            ctx.putImageData(imgData, 0, 0);
+        }
+
+        function drawFrameFallback() {
+            ctx.lineWidth = 14;
+            ctx.strokeStyle = '#c5a059'; // Bronce
+            ctx.strokeRect(30, 30, canvas.width - 60, canvas.height - 60);
+
+            // Borde interno fino
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#8c6f39';
+            ctx.strokeRect(48, 48, canvas.width - 96, canvas.height - 96);
+            
+            // Adornos en las esquinas
+            const cornerSize = 50;
+            ctx.fillStyle = '#c5a059';
+            
+            // Cuadrados decorativos de esquina
+            ctx.fillRect(30, 30, cornerSize, cornerSize);
+            ctx.fillRect(canvas.width - 30 - cornerSize, 30, cornerSize, cornerSize);
+            ctx.fillRect(30, canvas.height - 30 - cornerSize, cornerSize, cornerSize);
+            ctx.fillRect(canvas.width - 30 - cornerSize, canvas.height - 30 - cornerSize, cornerSize, cornerSize);
+            
+            // Floritura de esquina
+            ctx.strokeStyle = '#fdfbf7';
+            ctx.lineWidth = 2;
+            
+            // Dibujar cruz/rombo en cada esquina
+            const drawCornerFlower = (x, y) => {
+                ctx.beginPath();
+                ctx.moveTo(x, y - 15);
+                ctx.lineTo(x + 15, y);
+                ctx.lineTo(x, y + 15);
+                ctx.lineTo(x - 15, y);
+                ctx.closePath();
+                ctx.stroke();
+            };
+            
+            drawCornerFlower(30 + cornerSize/2, 30 + cornerSize/2);
+            drawCornerFlower(canvas.width - 30 - cornerSize/2, 30 + cornerSize/2);
+            drawCornerFlower(30 + cornerSize/2, canvas.height - 30 - cornerSize/2);
+            drawCornerFlower(canvas.width - 30 - cornerSize/2, canvas.height - 30 - cornerSize/2);
+        }
+
+        function drawCharacterFallback() {
+            // Dibujar un óvalo cameo de época en la esquina inferior derecha
+            const cameoX = canvas.width - 150;
+            const cameoY = canvas.height - 180;
+            const cameoRadiusX = 80;
+            const cameoRadiusY = 110;
+
+            // Sombra del cameo
+            ctx.beginPath();
+            ctx.ellipse(cameoX + 3, cameoY + 4, cameoRadiusX, cameoRadiusY, 0, 0, Math.PI * 2);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            ctx.fill();
+
+            // Borde de bronce del cameo
+            ctx.beginPath();
+            ctx.ellipse(cameoX, cameoY, cameoRadiusX, cameoRadiusY, 0, 0, Math.PI * 2);
+            ctx.fillStyle = '#c5a059';
+            ctx.fill();
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#ffd700';
+            ctx.stroke();
+
+            // Fondo del cameo
+            ctx.beginPath();
+            ctx.ellipse(cameoX, cameoY, cameoRadiusX - 8, cameoRadiusY - 8, 0, 0, Math.PI * 2);
+            ctx.fillStyle = '#2b2a26';
+            ctx.fill();
+
+            // Silueta estilizada blanca/bronce del prócer
+            ctx.fillStyle = '#e5c17d';
+            ctx.beginPath();
+            // Hombros/Busto
+            ctx.moveTo(cameoX - 45, cameoY + 60);
+            ctx.quadraticCurveTo(cameoX, cameoY + 30, cameoX + 45, cameoY + 60);
+            ctx.lineTo(cameoX + 35, cameoY + 85);
+            ctx.lineTo(cameoX - 35, cameoY + 85);
+            ctx.closePath();
+            ctx.fill();
+
+            // Cabeza/Perfil
+            ctx.beginPath();
+            ctx.arc(cameoX, cameoY - 15, 30, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Detalles de gorra militar/cabello en relieve si es militar
+            if (stationKey === 'cabral' || stationKey === 'madariaga') {
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath();
+                ctx.arc(cameoX - 5, cameoY - 25, 22, Math.PI, Math.PI * 1.8);
+                ctx.lineTo(cameoX + 15, cameoY - 32);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+
+        // Los textos de la foto ahora se integran directamente en el archivo del marco (SVG/PNG) para máxima personalización sin tocar código
+
+        // 5. Narrador de Voz con Text-To-Speech (TTS)
+        function toggleAudioNarrative() {
+            if (isSpeaking) {
+                speechSynth.cancel();
+                isSpeaking = false;
+                audioIcon.setAttribute('name', 'volume-medium-outline');
+                btnAudio.classList.remove('muted');
+            } else {
+                if (speechUtterance) {
+                    speechSynth.speak(speechUtterance);
+                } else {
+                    speechUtterance = new SpeechSynthesisUtterance(currentStation.narrative);
+                    speechUtterance.lang = 'es-ES';
+                    speechUtterance.rate = 0.95; // Un poco más lento para tono solemne/nocturno
+                    
+                    speechUtterance.onend = () => {
+                        isSpeaking = false;
+                        audioIcon.setAttribute('name', 'volume-medium-outline');
+                        btnAudio.classList.remove('muted');
+                    };
+                    
+                    speechUtterance.onerror = () => {
+                        isSpeaking = false;
+                        audioIcon.setAttribute('name', 'volume-medium-outline');
+                        btnAudio.classList.remove('muted');
+                    };
+                    
+                    speechSynth.speak(speechUtterance);
+                }
+                
+                isSpeaking = true;
+                audioIcon.setAttribute('name', 'volume-mute-outline');
+                btnAudio.classList.add('muted');
+            }
+        }
+
+        // 6. Cambiar Filtros de Época
+        btnFilter.addEventListener('click', () => {
+            const filterMap = {
+                'none': { key: 'sepia', text: 'Sepia' },
+                'sepia': { key: 'grayscale', text: 'B&N' },
+                'grayscale': { key: 'grain', text: 'Grano 1900' },
+                'grain': { key: 'none', text: 'Normal' }
+            };
+            
+            const next = filterMap[activeFilter];
+            activeFilter = next.key;
+            
+            // Retroalimentación táctil corta si está disponible
+            if (navigator.vibrate) navigator.vibrate(20);
+        });
+
+        // 7. Alternar Cámara (Frontal / Trasera)
+        btnSwitchCam.addEventListener('click', () => {
+            useFacingMode = useFacingMode === 'user' ? 'environment' : 'user';
+            if (navigator.vibrate) navigator.vibrate(30);
+            startCamera();
+        });
+
+        // Generar un sonido de obturador realista de forma sintética (Web Audio API)
+        function playShutterSound() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const bufferSize = audioCtx.sampleRate * 0.12; // 120ms
+                const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+                const data = buffer.getChannelData(0);
+                
+                // Rellenar con ruido blanco para simular el obturador mecánico
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                
+                const noiseNode = audioCtx.createBufferSource();
+                noiseNode.buffer = buffer;
+                
+                const filterNode = audioCtx.createBiquadFilter();
+                filterNode.type = 'bandpass';
+                filterNode.frequency.setValueAtTime(1000, audioCtx.currentTime);
+                filterNode.Q.setValueAtTime(1.5, audioCtx.currentTime);
+                
+                const gainNode = audioCtx.createGain();
+                gainNode.gain.setValueAtTime(0.8, audioCtx.currentTime);
+                // Exponencial rápida de bajada para el clic
+                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+                
+                noiseNode.connect(filterNode);
+                filterNode.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                noiseNode.start();
+                noiseNode.stop(audioCtx.currentTime + 0.12);
+            } catch (e) {
+                console.warn("Fallo al reproducir sonido sintetizado", e);
+            }
+        }
+
+        // 8. Capturar Fotografía
+        btnCapture.addEventListener('click', () => {
+            // Reproducir sonido de obturador sintetizado
+            playShutterSound();
+
+            if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+
+            // Detener narración de audio al disparar
+            if (isSpeaking) {
+                speechSynth.cancel();
+                isSpeaking = false;
+                audioIcon.setAttribute('name', 'volume-medium-outline');
+                btnAudio.classList.remove('muted');
+            }
+
+            // Capturar la imagen del canvas como PNG DataURL
+            const dataUrl = canvas.toDataURL('image/png');
+            finalImage.src = dataUrl;
+            
+            // Mostrar modal con efecto de fundido
+            resultModal.style.display = 'flex';
+            setTimeout(() => {
+                resultModal.classList.add('show');
+            }, 10);
+
+            // Emitir evento por WebSocket sobre captura realizada
+            sendWsMessage({
+                type: 'PHOTO_CAPTURED',
+                station: stationKey
+            });
+        });
+
+        // 9. Guardar y Descargar Archivo localmente (Fallback)
+        btnDownload.addEventListener('click', () => {
+            const dataUrl = canvas.toDataURL('image/png');
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = `Cementerio_SanJuanBautista_${stationKey}_${Date.now()}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+        // 10. Compartir usando Web Share API (Nativo de celulares)
+        btnShare.addEventListener('click', async () => {
+            const dataUrl = canvas.toDataURL('image/png');
+            
+            if (navigator.share && navigator.canShare) {
+                try {
+                    // Convertir Data URL a un Blob y luego a Archivo para poder enviarlo
+                    const response = await fetch(dataUrl);
+                    const blob = await response.blob();
+                    const file = new File([blob], `retrato_historico_${stationKey}.png`, { type: 'image/png' });
+                    
+                    const shareData = {
+                        title: 'Mi Retrato Histórico 🏛️',
+                        text: `Mira mi foto en el ${currentStation.name} en el paseo nocturno. ¡Una experiencia inolvidable! ${currentStation.hashtag}`,
+                        files: [file]
+                    };
+                    
+                    if (navigator.canShare(shareData)) {
+                        await navigator.share(shareData);
+                        return;
+                    }
+                } catch (err) {
+                    console.log('Compartir nativo cancelado o falló, ejecutando descarga directa.', err);
+                }
+            }
+            
+            // Si no está disponible el Share nativo, simulamos una advertencia y abrimos descarga
+            alert("Tu navegador no soporta compartir directamente archivos. Guardaremos la imagen en tu dispositivo para que puedas subirla a tus redes sociales.");
+            btnDownload.click();
+        });
+
+        // 11. Cerrar Modal y Volver al modo Cámara
+        btnCloseModal.addEventListener('click', () => {
+            resultModal.classList.remove('show');
+            setTimeout(() => {
+                resultModal.style.display = 'none';
+                requestAnimationFrame(renderCanvas);
+            }, 400);
+        });
+
+        // Eventos
+        // Fullscreen API para ocultar barra del navegador en PC
+        const btnFullscreen = document.getElementById('btnFullscreen');
+        const fullscreenIcon = document.getElementById('fullscreenIcon');
+        btnFullscreen.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error intentando activar pantalla completa: ${err.message}`);
+                });
+                fullscreenIcon.setAttribute('name', 'contract-outline');
+            } else {
+                document.exitFullscreen();
+                fullscreenIcon.setAttribute('name', 'expand-outline');
+            }
+        });
+
+        // Ajustar resolución de canvas dinámicamente al tamaño de pantalla del móvil
+        function adjustCanvasResolution() {
+            const baseWidth = 1080;
+            const screenRatio = window.innerHeight / window.innerWidth;
+            canvas.width = baseWidth;
+            canvas.height = Math.round(baseWidth * screenRatio);
+            console.log(`Resolución Canvas dinámica: ${canvas.width}x${canvas.height} (Ratio: ${screenRatio.toFixed(2)})`);
+            
+            if (typeof loadResponsiveOverlay === 'function') {
+                loadResponsiveOverlay();
+            }
+        }
+
+        // Inicialización al cargar la ventana
+        window.addEventListener('load', () => {
+            adjustCanvasResolution();
+            startCamera();
+            initWebSocket();
+            
+            // Registrar Service Worker para PWA
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registrado correctamente.', reg.scope))
+                    .catch(err => console.error('Error al registrar Service Worker.', err));
+            }
+        });
+
+        // Reajustar si el celular rota o cambia de tamaño la pantalla
+        window.addEventListener('resize', () => {
+            adjustCanvasResolution();
+        });
+    </script>
+</body>
+</html>

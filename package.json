@@ -1,0 +1,12 @@
+{
+  "name": "cementerio-nfc-pwa",
+  "version": "1.0.0",
+  "description": "PWA de Fotografía Histórica NFC en el Cementerio San Juan Bautista",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "Fotografía Histórica - Cementerio San Juan Bautista",
+  "short_name": "Foto Histórica",
+  "description": "Retratos interactivos y filtros vintage en el Cementerio San Juan Bautista.",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0f0f0e",
+  "theme_color": "#0f0f0e",
+  "orientation": "portrait-primary",
+  "categories": ["utilities", "travel"],
+  "icons": [
+    {
+      "src": "assets/icons/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icons/icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "192x192 512x512",
+      "purpose": "maskable"
+    }
+  ]
+}
