@@ -1,7 +1,7 @@
 {
-  "name": "Fotografía Histórica - Cementerio San Juan Bautista",
-  "short_name": "Foto Histórica",
-  "description": "Retratos interactivos y filtros vintage en el Cementerio San Juan Bautista.",
+  "name": "La Maraton Pasion que Corre Corrientes",
+  "short_name": "Pasion Que Corre",
+  "description": "App de fotos para La Maraton Pasion que Corre Corrientes Capital Nacional del Carnaval.",
   "start_url": "index.html",
   "display": "standalone",
   "background_color": "#0f0f0e",

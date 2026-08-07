@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cementerio-nfc-v3';
+const CACHE_NAME = 'maraton-nfc-v1';
 const ASSETS_TO_CACHE = [
   'index.html',
   'styles.css',

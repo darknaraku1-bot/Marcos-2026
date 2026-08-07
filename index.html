@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="theme-color" content="#0f0f0e">
-    <meta name="description" content="PWA para capturar retratos históricos interactivos en el Cementerio San Juan Bautista">
-    <title>Fotografía Histórica - Cementerio San Juan Bautista</title>
+    <meta name="description" content="PWA para capturar fotos en La Maraton Pasion que Corre Corrientes Capital Nacional del Carnaval">
+    <title>La Maraton Pasion que Corre Corrientes</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
     <!-- Ionicons for modern antique-style UI icons -->
@@ -96,13 +96,12 @@
         // Mapeo enriquecido de estaciones de la ruta histórica
         const stationsData = {
             'default': {
-                name: 'Cementerio Histórico',
-                subtitle: 'San Juan Bautista',
+                name: 'Maraton Pasion que Corre',
                 overlay: 'assets/marcos/marco_generico.png',
                 character: 'assets/personajes/personaje_generico.png',
                 signature: 'Recuerdo del Pasado',
-                narrative: 'Bienvenidos al Cementerio San Juan Bautista de Corrientes, fundado a mediados del siglo diecinueve. Un espacio sagrado donde la arquitectura victoriana y las leyendas se funden bajo el susurro del viento.',
-                hashtag: '#PaseoNocturno #CementerioSanJuanBautista',
+                narrative: 'Bienvenidos a La Maraton Pasion que Corre Corrientes Capital Nacional del Carnaval.',
+                hashtag: '#MaratonPasionQueCorre #CorrientesCapitalNacionalDelCarnaval',
                 color: 'gold'
             },
             'cabral': {
@@ -132,7 +131,7 @@
                 character: 'assets/personajes/madariaga.png',
                 signature: 'J. Madariaga',
                 narrative: 'El General Joaquín Madariaga lideró las fuerzas de resistencia contra la tiranía en el siglo diecinueve. Junto a su hermano Juan, cruzó el río Uruguay en una gesta heroica para restaurar las libertades de la provincia de Corrientes y unificar el país.',
-                hashtag: '#GeneralMadariaga #CementerioSanJuanBautista #HistoriaNacional',
+                hashtag: '#MaratonPasionQueCorre',
                 color: 'green'
             },
             'poeta': {
@@ -729,7 +728,7 @@
             const dataUrl = canvas.toDataURL('image/png');
             const a = document.createElement('a');
             a.href = dataUrl;
-            a.download = `Cementerio_SanJuanBautista_${stationKey}_${Date.now()}.png`;
+            a.download = `Pasion_Que_Corre_${stationKey}_${Date.now()}.png`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -748,7 +747,7 @@
                     
                     const shareData = {
                         title: 'Mi foto en La Maraton Pasion que Corre 📷',
-                        text: 'Mira mi foto en La Maraton Pasion que Corre Corrientes capital Nacional del Carnaval',
+                        text: 'Mira mi foto en La Maraton Pasion que Corre Corrientes Capital Nacional del Carnaval',
                         files: [file]
                     };
                     
