@@ -438,10 +438,20 @@
                 // Dibujar el Marco Ornamental PNG (Cubre exactamente los 4 límites de la pantalla)
                 if (overlayLoaded) {
                     // Factor de zoom para compensar si el archivo PNG tiene márgenes transparentes
-                    // Si recortas la imagen perfecta en Photoshop, puedes poner esto en 1.0
                     const zoomCompensacion = 1.15; 
-                    const w = canvas.width * zoomCompensacion;
-                    const h = canvas.height * zoomCompensacion;
+                    const canvasRatio = canvas.width / canvas.height;
+                    const imgRatio = overlayImg.width / overlayImg.height;
+                    let w, h;
+                    
+                    // Mantener la relación de aspecto sin deformar (efecto "cover")
+                    if (canvasRatio > imgRatio) {
+                        w = canvas.width * zoomCompensacion;
+                        h = w / imgRatio;
+                    } else {
+                        h = canvas.height * zoomCompensacion;
+                        w = h * imgRatio;
+                    }
+                    
                     const x = (canvas.width - w) / 2;
                     const y = (canvas.height - h) / 2;
                     
