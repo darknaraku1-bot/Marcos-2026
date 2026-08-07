@@ -197,8 +197,8 @@
         overlayImg.onload = () => { overlayLoaded = true; };
         overlayImg.onerror = () => { 
             console.warn("No se pudo cargar el marco PNG específico, intentando cargar el genérico de la estación como fallback...");
-            if (!overlayImg.src.endsWith(currentStation.overlay)) {
-                overlayImg.src = currentStation.overlay;
+            if (!overlayImg.src.endsWith(currentStation.overlay + '?v=2')) {
+                overlayImg.src = currentStation.overlay + '?v=2';
             } else {
                 overlayLoaded = false;
             }
@@ -207,9 +207,9 @@
         function loadResponsiveOverlay() {
             const isVertical = window.innerHeight > window.innerWidth;
             const suffix = isVertical ? '_vertical' : '_horizontal';
-            const responsiveSrc = currentStation.overlay.replace('.png', `${suffix}.png`);
+            const responsiveSrc = currentStation.overlay.replace('.png', `${suffix}.png`) + '?v=2';
             
-            if (!overlayImg.src.endsWith(responsiveSrc) && !overlayImg.src.endsWith(currentStation.overlay)) {
+            if (!overlayImg.src.endsWith(responsiveSrc) && !overlayImg.src.endsWith(currentStation.overlay + '?v=2')) {
                 overlayImg.src = responsiveSrc;
             }
         }
